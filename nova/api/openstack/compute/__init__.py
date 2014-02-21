@@ -32,6 +32,12 @@ from nova.api.openstack.compute import plugins
 from nova.api.openstack.compute import server_metadata
 from nova.api.openstack.compute import servers
 from nova.api.openstack.compute import versions
+from nova.api.openstack.compute import domains
+
+from nova.openstack.common import log as logging
+
+LOG = logging.getLogger(__name__)
+
 
 allow_instance_snapshots_opt = cfg.BoolOpt('allow_instance_snapshots',
         default=True,
@@ -49,6 +55,7 @@ class APIRouter(nova.api.openstack.APIRouter):
     ExtensionManager = extensions.ExtensionManager
 
     def _setup_routes(self, mapper, ext_mgr, init_only):
+
         if init_only is None or 'versions' in init_only:
             self.resources['versions'] = versions.create_resource()
             mapper.connect("versions", "/",
@@ -72,6 +79,70 @@ class APIRouter(nova.api.openstack.APIRouter):
                             controller=self.resources['servers'],
                             collection={'detail': 'GET'},
                             member={'action': 'POST'})
+
+        if init_only is None or 'domains' in init_only:
+            self.resources['domains'] = domains.create_resource(ext_mgr)
+
+            domains_controller = self.resources['domains']
+
+            # kwargs['path_prefix'] = 'domains/{domain_id}/%s/:%s_id' \
+            #                        % (p_collection, p_member)
+
+            # map.extend(routes, "/domains")
+
+            # mapper.resource("domains", "servers",
+            #    controller=self.resources['domains'],
+                #collection={'detail': 'GET'},
+            #    path_prefix="/domains",
+            #    member={'action': 'POST'})
+
+            # mapper.resource("action", "domains",
+            #                controller=domains_controller,
+            #                parent_resource=dict(member_name='domain',
+            #                                      collection_name='domains'),
+            #               /servers/:server_id",
+                            #member={'action': 'POST'})
+            # mapper.resource("domain", "servers",
+            #    controller=domains_controller,
+            #    parent_resource=dict(member_name='domain',
+            #    collection_name='domains'))
+
+            #===========================================================
+            # mapper.connect("domains",
+            #    "/domains/{domain_id}/servers/{server_id}/action",
+            #    controller=domains_controller,
+            #    action='default',
+            #    conditions={"method": ['POST']})
+            #===========================================================
+
+            mapper.connect("domains",
+               "/domains/{domain_id}/servers/{server_id}",
+               controller=domains_controller,
+               action='delete',
+               conditions={"method": ['DELETE']})
+
+            mapper.connect("domains",
+                           "/domains/{domain_id}/servers",
+                           controller=domains_controller,
+                           action='index',
+                           conditions={"method": ['GET']})
+
+            mapper.connect("domains",
+               "/domains/{domain_id}/servers/{server_id}",
+               controller=domains_controller,
+               action='show',
+               conditions={"method": ['GET']})
+
+            mapper.connect("domains",
+               "/domains/{domain_id}/servers/{id}/action",
+               controller=domains_controller,
+               action='action',
+               conditions={"method": ['POST']})
+
+            # mapper.resource("server", "servers",
+            #                # controller=domains_controller,
+            #                path_prefix='/domains/{domain_id}',
+            #                member={'action': 'POST'})
 
         if init_only is None or 'ips' in init_only:
             self.resources['ips'] = ips.create_resource()
