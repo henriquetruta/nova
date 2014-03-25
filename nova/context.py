@@ -48,11 +48,21 @@ class RequestContext(object):
                  roles=None, remote_address=None, timestamp=None,
                  request_id=None, auth_token=None, overwrite=True,
                  quota_class=None, user_name=None, project_name=None,
+<<<<<<< HEAD
                  service_catalog=None, instance_lock_checked=False, **kwargs):
         """:param read_deleted: 'no' indicates deleted records are hidden,
                 'yes' indicates deleted records are visible,
                 'only' indicates that *only* deleted records are visible.
 
+=======
+                 service_catalog=None, instance_lock_checked=False,
+                 domain_id=None, project_domain_id=None, user_domain_id=None,
+                 **kwargs):
+        """
+        :param read_deleted: 'no' indicates deleted records are hidden, 'yes'
+            indicates deleted records are visible, 'only' indicates that
+            *only* deleted records are visible.
+>>>>>>> 217dac4... Domains prototype in Nova
 
            :param overwrite: Set to False to ensure that the greenthread local
                 copy of the index is not overwritten.
@@ -64,6 +74,9 @@ class RequestContext(object):
             LOG.warn(_('Arguments dropped when creating context: %s') %
                     str(kwargs))
 
+        self.domain_id = domain_id
+        self.project_domain_id = project_domain_id
+        self.user_domain_id = user_domain_id
         self.user_id = user_id
         self.project_id = project_id
         self.roles = roles or []
@@ -135,7 +148,10 @@ class RequestContext(object):
                 'project_name': self.project_name,
                 'instance_lock_checked': self.instance_lock_checked,
                 'tenant': self.tenant,
-                'user': self.user}
+                'user': self.user,
+                'user_domain_id': self.user_domain_id,
+                'domain_id': self.domain_id,
+                'project_domain_id': self.project_domain_id}
 
     @classmethod
     def from_dict(cls, values):
@@ -212,6 +228,31 @@ def authorize_project_context(context, project_id):
             raise exception.NotAuthorized()
 
 
+def authorize_domain_project_context(context, domain_id, project_id):
+    """Ensures a request has permission to access the given project
+    in a domain.
+    """
+
+    if is_user_context(context):
+        if not context.domain_id:
+            raise exception.NotAuthorized()
+        elif not context.project_id:
+            raise exception.NotAuthorized()
+        else:
+            if context.domain_id != domain_id or \
+                context.project_id != project_id:
+                raise exception.NotAuthorized()
+
+
+def authorize_domain_context(context, domain_id):
+    """Ensures a request has permission to access the given domain."""
+    if is_user_context(context):
+        if not context.domain_id:
+            raise exception.NotAuthorized()
+        elif context.domain_id != domain_id:
+            raise exception.NotAuthorized()
+
+
 def authorize_user_context(context, user_id):
     """Ensures a request has permission to access the given user."""
     if is_user_context(context):
@@ -219,6 +260,22 @@ def authorize_user_context(context, user_id):
             raise exception.NotAuthorized()
         elif context.user_id != user_id:
             raise exception.NotAuthorized()
+
+
+def authorize_project_user_context(context, project_id, user_id):
+    """Ensures a request has permission to access the given user
+    in a project.
+    """
+
+    if is_user_context(context):
+        if not context.user_id:
+            raise exception.NotAuthorized()
+        elif not context.project_id:
+            raise exception.NotAuthorized()
+        else:
+            if context.user_id != user_id or \
+                context.project_id != project_id:
+                raise exception.NotAuthorized()
 
 
 def authorize_quota_class_context(context, class_name):

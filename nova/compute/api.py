@@ -765,6 +765,7 @@ class API(base.Base):
             'config_drive': config_drive,
             'user_id': context.user_id,
             'project_id': context.project_id,
+            'project_domain_id': context.project_domain_id,
             'instance_type_id': instance_type['id'],
             'memory_mb': instance_type['memory_mb'],
             'vcpus': instance_type['vcpus'],
@@ -1854,6 +1855,8 @@ class API(base.Base):
                     except ValueError:
                         return []
 
+        LOG.debug("Searching inst_models")
+
         inst_models = self._get_instances_by_filters(context, filters,
                 sort_key, sort_dir, limit=limit, marker=marker,
                 expected_attrs=expected_attrs)
@@ -1873,6 +1876,7 @@ class API(base.Base):
                                   limit=None,
                                   marker=None, expected_attrs=None):
         if 'ip6' in filters or 'ip' in filters:
+            LOG.debug("entrou no IF")
             res = self.network_api.get_instance_uuids_by_ip_filter(context,
                                                                    filters)
             # NOTE(jkoelker) It is possible that we will get the same
@@ -1884,6 +1888,7 @@ class API(base.Base):
                   'security_groups']
         if expected_attrs:
             fields.extend(expected_attrs)
+        LOG.debug("chamar get_by_filters")
         return instance_obj.InstanceList.get_by_filters(
             context, filters=filters, sort_key=sort_key, sort_dir=sort_dir,
             limit=limit, marker=marker, expected_attrs=fields)

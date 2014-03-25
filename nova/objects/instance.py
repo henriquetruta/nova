@@ -162,6 +162,8 @@ class Instance(base.NovaPersistentObject, base.NovaObject):
         'cleaned': fields.BooleanField(default=False),
 
         'pci_devices': fields.ObjectField('PciDeviceList', nullable=True),
+
+        'project_domain_id': fields.StringField(nullable=True),
         }
 
     obj_extra_fields = ['name']
@@ -256,6 +258,7 @@ class Instance(base.NovaPersistentObject, base.NovaObject):
 
         Converts a database entity to a formal object.
         """
+        LOG.debug(instance)
         if expected_attrs is None:
             expected_attrs = []
         # Most of the field names match right now, so be quick

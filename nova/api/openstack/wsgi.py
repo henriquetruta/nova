@@ -761,13 +761,17 @@ class Resource(wsgi.Application):
         """Registers controller actions with this resource."""
 
         actions = getattr(controller, 'wsgi_actions', {})
+
+        LOG.debug(actions)
         for key, method_name in actions.items():
             self.wsgi_actions[key] = getattr(controller, method_name)
+        LOG.debug(self.wsgi_actions)
 
     def register_extensions(self, controller):
         """Registers controller extensions with this resource."""
 
         extensions = getattr(controller, 'wsgi_extensions', [])
+        LOG.debug(extensions)
         for method_name, action_name in extensions:
             # Look up the extending method
             extension = getattr(controller, method_name)
@@ -805,6 +809,8 @@ class Resource(wsgi.Application):
             del args['format']
         except KeyError:
             pass
+
+        LOG.debug("args: %s", args)
 
         return args
 
@@ -964,8 +970,24 @@ class Resource(wsgi.Application):
         action_args.update(contents)
 
         project_id = action_args.pop("project_id", None)
+        # In order to disambiguate  the case of os-floating-ip-dns
+        #    and other calls
+        if "/domains/" in request.url:
+            domain_id = action_args.pop("domain_id", None)
+        else:
+            domain_id = None
+
         context = request.environ.get('nova.context')
-        if (context and project_id and (project_id != context.project_id)):
+
+        if (context and domain_id and (domain_id != context.domain_id)):
+            msg = _("Malformed request URL: URL's domain_id '%(domain_id)s'"
+                    " doesn't match Context's domain_id"
+                    " '%(context_domain_id)s'") % \
+                    {'domain_id': domain_id,
+                     'context_domain_id': context.domain_id}
+            return Fault(webob.exc.HTTPBadRequest(explanation=msg))
+        elif (context and (project_id is not None)
+              and (project_id != context.project_id)):
             msg = _("Malformed request URL: URL's project_id '%(project_id)s'"
                     " doesn't match Context's project_id"
                     " '%(context_project_id)s'") % \
@@ -1066,7 +1088,6 @@ class Resource(wsgi.Application):
 
     def dispatch(self, method, request, action_args):
         """Dispatch a call to the action-specific method."""
-
         return method(req=request, **action_args)
 
 
